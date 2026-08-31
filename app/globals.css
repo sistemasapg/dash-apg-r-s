@@ -1,0 +1,165 @@
+@import 'tailwindcss';
+
+/*
+  Paleta validada para daltonismo e contraste. As cores vivem como variáveis
+  semânticas e o Tailwind aponta para elas, então trocar o tema muda um lugar só.
+*/
+:root {
+  color-scheme: light;
+
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f2f2ef;
+
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --borda: rgba(11, 11, 11, 0.1);
+
+  --serie-1: #2a78d6;
+
+  /* Rampa ordinal do funil: etapa mais avançada, tom mais escuro. */
+  --funil-1: #86b6ef;
+  --funil-2: #5598e7;
+  --funil-3: #3987e5;
+  --funil-4: #2a78d6;
+  --funil-5: #256abf;
+  --funil-6: #1c5cab;
+  --funil-7: #184f95;
+  --funil-8: #104281;
+
+  --alta: #006300;
+  --baixa: #d03b3b;
+  --atencao: #fab219;
+
+  /*
+    Cores da marca da APG, tiradas do site institucional. Vivem só na moldura —
+    cabeçalho, navegação, foco. Os gráficos continuam na paleta validada para
+    daltonismo e contraste, que não deve ser trocada por cor de logo.
+  */
+  --marca-azul: #2a4a8f;
+  --marca-laranja: #e8622a;
+
+  --logo-filtro: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232322;
+
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --borda: rgba(255, 255, 255, 0.1);
+
+    --serie-1: #3987e5;
+
+    --funil-1: #184f95;
+    --funil-2: #1c5cab;
+    --funil-3: #256abf;
+    --funil-4: #2a78d6;
+    --funil-5: #3987e5;
+    --funil-6: #5598e7;
+    --funil-7: #6da7ec;
+    --funil-8: #86b6ef;
+
+    --alta: #0ca30c;
+    --baixa: #d03b3b;
+
+    /* Passos mais claros da marca, para o fundo escuro. */
+    --marca-azul: #7ba0e6;
+    --marca-laranja: #f4855a;
+
+    /* Inverter sozinho clarearia o texto mas trocaria azul por laranja. O
+       hue-rotate de 180° devolve as matizes, então o preto vira branco e as
+       cores da marca continuam sendo as cores da marca. */
+    --logo-filtro: invert(1) hue-rotate(180deg);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-muted: #898781;
+
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --borda: rgba(255, 255, 255, 0.1);
+
+  --serie-1: #3987e5;
+
+  --funil-1: #184f95;
+  --funil-2: #1c5cab;
+  --funil-3: #256abf;
+  --funil-4: #2a78d6;
+  --funil-5: #3987e5;
+  --funil-6: #5598e7;
+  --funil-7: #6da7ec;
+  --funil-8: #86b6ef;
+
+  --alta: #0ca30c;
+  --baixa: #d03b3b;
+
+  --marca-azul: #7ba0e6;
+  --marca-laranja: #f4855a;
+
+  --logo-filtro: invert(1) hue-rotate(180deg);
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-muted: var(--ink-muted);
+  --color-grid: var(--grid);
+  --color-baseline: var(--baseline);
+  --color-borda: var(--borda);
+  --color-serie-1: var(--serie-1);
+  --color-alta: var(--alta);
+  --color-baixa: var(--baixa);
+  --color-atencao: var(--atencao);
+  --color-marca-azul: var(--marca-azul);
+  --color-marca-laranja: var(--marca-laranja);
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* Colunas de número só alinham verticalmente com figuras tabulares. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  Marca d'água ao fundo. Fica fixa (não rola junto), não recebe clique e some
+  sozinha se `public/logo.png` não existir — background-image que falha não
+  deixa ícone quebrado, ao contrário de uma <img>.
+*/
+/* O logo da APG é azul-marinho sobre branco: no escuro o invert leva o branco
+   para preto (some no fundo) e o azul-marinho para um azul claro. */
+.logo-marca {
+  filter: var(--logo-filtro);
+}

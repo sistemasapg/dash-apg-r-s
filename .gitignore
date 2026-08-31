@@ -1,0 +1,24 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Tudo que a máquina gera fica de fora: o banco tem nome, e-mail e etapa de
+# candidato real, e o log tem os nomes das vagas. Nada disso vai para o GitHub.
+data/
+
+# Arquivos brutos exportados da Gupy
+uploads/
+
+# O token da Gupy vive aqui. Nunca commitar.
+.env
+.env.local
+*.local
+
+
+# Cache de build do TypeScript
+tsconfig.tsbuildinfo
+
+# Vercel
+.vercel/
