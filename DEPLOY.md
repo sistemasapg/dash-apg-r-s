@@ -16,7 +16,8 @@ que já tem todos os valores certos.
 | `DATABASE_URL` | session pooler do Supabase (`aws-1-…pooler.supabase.com:5432`) | o dash não sobe |
 | `DATABASE_SCHEMA` | **`gupy_apg`** | escreveria no schema errado, em cima de outro sistema |
 | `GUPY_TOKEN` | token de R&S da Gupy | o sync falha com 401 |
-| `DASH_USUARIO` / `DASH_SENHA` | o login do painel | **o dash responde 503 e se recusa a subir** |
+| `DASH_USUARIO` / `DASH_SENHA` | a conta principal do painel | **o dash responde 503 e se recusa a subir** |
+| `DASH_USUARIOS` | contas adicionais, `email:senha` por linha | só a conta principal consegue entrar |
 | `DASH_SEGREDO` | assina o cookie de sessão | cai no `CRON_SECRET`; trocá-lo depois desloga todo mundo |
 | `CRON_SECRET` | autoriza o cron a chamar `/api/sync` | o sync diário não roda |
 | `DASH_DIAS_DETALHE` | `14` | volta ao padrão 45, e o banco cresce ~3x |

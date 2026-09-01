@@ -465,6 +465,40 @@ Os gráficos continuam na paleta validada para daltonismo e contraste. Trocar as
 cores de série pelas cores do logo deixaria o painel mais "da marca" e menos
 legível para quem não distingue certos tons — não vale a troca.
 
+## Quem pode entrar
+
+O acesso é por tela de login, com sessão em cookie assinado (HMAC) que dura 12
+horas. As contas vivem em variáveis de ambiente:
+
+-  /  — a conta principal;
+-  — as demais, uma por linha, no formato .
+
+Não há banco de usuários **de propósito**: o painel tem um punhado de pessoas do
+mesmo time e nenhuma permissão diferente entre elas. Uma tabela traria cadastro,
+recuperação de senha e tela de administração para resolver o que uma variável
+resolve. No dia em que existir perfil diferente por pessoa — alguém que só lê,
+alguém que lança vaga — aí a tabela passa a valer a pena.
+
+O e-mail de quem entrou aparece no cabeçalho, ao lado de "Sair": num computador
+compartilhado, "Sair" sozinho não diz de qual sessão você está saindo.
+
+## Quem pode entrar
+
+O acesso é por tela de login, com sessão em cookie assinado (HMAC) que dura 12
+horas. As contas vivem em variáveis de ambiente:
+
+- `DASH_USUARIO` / `DASH_SENHA` — a conta principal;
+- `DASH_USUARIOS` — as demais, uma por linha, no formato `email:senha`.
+
+Não há banco de usuários **de propósito**: o painel tem um punhado de pessoas do
+mesmo time e nenhuma permissão diferente entre elas. Uma tabela traria cadastro,
+recuperação de senha e tela de administração para resolver o que uma variável
+resolve. No dia em que existir perfil diferente por pessoa — alguém que só lê,
+alguém que lança vaga — aí a tabela passa a valer a pena.
+
+O e-mail de quem entrou aparece no cabeçalho, ao lado de "Sair": num computador
+compartilhado, "Sair" sozinho não diz de qual sessão você está saindo.
+
 ## Stack
 
 Next.js 15 · React 19 · Tailwind 4 · Postgres no Supabase via

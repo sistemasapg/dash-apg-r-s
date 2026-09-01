@@ -88,25 +88,89 @@ export async function sessaoValida(valor: string | undefined | null): Promise<bo
   }
 }
 
+/** Quem foi guardado no cookie. Null se ele não vale mais. */
+export async function lerSessao(valor: string | undefined | null): Promise<string | null> {
+  if (!valor || !(await sessaoValida(valor))) return null;
+  try {
+    const corpo = valor.slice(0, valor.lastIndexOf('.'));
+    const { u } = JSON.parse(atob(corpo.replace(/-/g, '+').replace(/_/g, '/'))) as { u: string };
+    return typeof u === 'string' ? u : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Confere usuário e senha, em tempo constante.
+ * As contas que podem entrar.
+ *
+ * `DASH_USUARIO` / `DASH_SENHA` é a conta principal, e continua sendo o que o
+ * middleware checa para decidir se o dash pode subir. `DASH_USUARIOS` acrescenta
+ * as outras, uma por linha (ou separadas por vírgula), no formato
+ * `email:senha`.
+ *
+ * Não há banco de usuários de propósito: o painel tem um punhado de pessoas do
+ * mesmo time e nenhuma permissão diferente entre elas. Uma tabela traria
+ * cadastro, recuperação de senha e tela de administração para resolver um
+ * problema que uma variável de ambiente resolve. Se um dia existir perfil
+ * diferente por pessoa, aí a tabela passa a valer a pena.
+ */
+function contas(): { usuario: string; senha: string }[] {
+  const lista: { usuario: string; senha: string }[] = [];
+
+  const principal = process.env.DASH_USUARIO?.trim();
+  const senhaPrincipal = process.env.DASH_SENHA;
+  if (principal && senhaPrincipal) lista.push({ usuario: principal, senha: senhaPrincipal });
+
+  for (const linha of (process.env.DASH_USUARIOS ?? '').split(/[\n,]/)) {
+    const bruto = linha.trim();
+    if (!bruto) continue;
+    // Corta no PRIMEIRO ":": o e-mail nunca tem um, e a senha pode ter.
+    const corte = bruto.indexOf(':');
+    if (corte <= 0) continue;
+    const usuario = bruto.slice(0, corte).trim();
+    const senha = bruto.slice(corte + 1);
+    if (usuario && senha) lista.push({ usuario, senha });
+  }
+
+  return lista;
+}
+
+/** Há pelo menos uma conta configurada? É o que decide se o dash pode subir. */
+export function temCredenciais(): boolean {
+  return contas().length > 0;
+}
+
+/**
+ * Compara em tempo constante.
  *
  * Comparar strings com `===` vaza, pela duração da comparação, quantos
  * caracteres do começo estão certos. É um ataque improvável num painel interno,
  * mas o custo de evitá-lo são estas seis linhas.
  */
-export function credenciaisConferem(usuario: string, senha: string): boolean {
-  const uEsperado = process.env.DASH_USUARIO ?? '';
-  const sEsperado = process.env.DASH_SENHA ?? '';
-  if (!uEsperado || !sEsperado) return false;
+function igual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diferenca = 0;
+  for (let i = 0; i < a.length; i++) diferenca |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diferenca === 0;
+}
 
-  const igual = (a: string, b: string) => {
-    if (a.length !== b.length) return false;
-    let diferenca = 0;
-    for (let i = 0; i < a.length; i++) diferenca |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    return diferenca === 0;
-  };
+/**
+ * Confere usuário e senha contra todas as contas.
+ *
+ * Devolve o e-mail canônico (o que está configurado) e não o que foi digitado,
+ * para o cookie guardar sempre a mesma grafia — senão a mesma pessoa apareceria
+ * de dois jeitos dependendo de como digitou.
+ */
+export function conferirCredenciais(usuario: string, senha: string): string | null {
+  const alvo = usuario.trim().toLowerCase();
 
-  // O usuário é um e-mail: caixa não deve separar duas pessoas que são a mesma.
-  return igual(usuario.trim().toLowerCase(), uEsperado.trim().toLowerCase()) && igual(senha, sEsperado);
+  let encontrada: string | null = null;
+  // Percorre a lista inteira mesmo depois de achar: parar no primeiro acerto
+  // faria o tempo de resposta contar em que posição a conta está.
+  for (const conta of contas()) {
+    if (igual(alvo, conta.usuario.toLowerCase()) && igual(senha, conta.senha)) {
+      encontrada = conta.usuario;
+    }
+  }
+  return encontrada;
 }

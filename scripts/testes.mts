@@ -15,6 +15,7 @@ import { calcularSla, diasUteisEntre, ehDiaUtil, prazoFinal } from '../lib/uteis
 import { funcoesDaCategoria, NOMES_CATEGORIAS, slaDaCategoria } from '../config/categorias.ts';
 import { escolaValida, escolasDaRegional, normalizarEscola, normalizarRegional, REGIONAIS, SIGLAS } from '../config/unidades.ts';
 import { SEM_RECORTE } from '../lib/analise-sla.ts';
+import { conferirCredenciais, temCredenciais } from '../lib/sessao.ts';
 
 let falhas = 0;
 
@@ -297,3 +298,65 @@ conferir('a sem prazo vai para o fim', urgencia.at(-1)?.card_id, 'S1');
 
 console.log(falhas === 0 ? '\nTodos os testes passaram.\n' : `\n${falhas} teste(s) falharam.\n`);
 process.exitCode = falhas === 0 ? 0 : 1;
+
+/* ------------------------------------------------------------------------ */
+
+console.log('\nContas de acesso');
+
+// As contas saem do ambiente, entao o teste monta o ambiente que quer conferir.
+const salvo = {
+  u: process.env.DASH_USUARIO,
+  s: process.env.DASH_SENHA,
+  m: process.env.DASH_USUARIOS,
+};
+process.env.DASH_USUARIO = 'admin@apggov.com.br';
+process.env.DASH_SENHA = 'senha-do-admin';
+process.env.DASH_USUARIOS = 'recrutamento@apggov.com.br:senha-do-rs\ncoordenacao@apggov.com.br:terceira';
+
+conferir('ha credenciais configuradas', temCredenciais(), true);
+conferir(
+  'a conta principal entra',
+  conferirCredenciais('admin@apggov.com.br', 'senha-do-admin'),
+  'admin@apggov.com.br',
+);
+conferir(
+  'a segunda conta entra',
+  conferirCredenciais('recrutamento@apggov.com.br', 'senha-do-rs'),
+  'recrutamento@apggov.com.br',
+);
+conferir(
+  'a terceira tambem (separadas por quebra de linha)',
+  conferirCredenciais('coordenacao@apggov.com.br', 'terceira'),
+  'coordenacao@apggov.com.br',
+);
+conferir(
+  'caixa alta no e-mail nao separa a mesma pessoa',
+  conferirCredenciais('Recrutamento@APGGov.com.br', 'senha-do-rs'),
+  'recrutamento@apggov.com.br',
+);
+conferir(
+  'devolve o e-mail canonico, nao o digitado',
+  conferirCredenciais('  ADMIN@apggov.com.br  ', 'senha-do-admin'),
+  'admin@apggov.com.br',
+);
+
+console.log('\nO que NAO pode entrar');
+conferir('senha de outra conta', conferirCredenciais('admin@apggov.com.br', 'senha-do-rs'), null);
+conferir('usuario inexistente', conferirCredenciais('ninguem@apggov.com.br', 'senha-do-rs'), null);
+conferir('senha vazia', conferirCredenciais('admin@apggov.com.br', ''), null);
+conferir('senha com caixa trocada', conferirCredenciais('admin@apggov.com.br', 'SENHA-DO-ADMIN'), null);
+
+// Senha com ":" precisa sobreviver: o corte e no PRIMEIRO dois-pontos.
+process.env.DASH_USUARIOS = 'x@apggov.com.br:a:b:c';
+conferir('senha com dois-pontos', conferirCredenciais('x@apggov.com.br', 'a:b:c'), 'x@apggov.com.br');
+
+// Sem nenhuma conta, o dash tem de se recusar a subir em producao.
+delete process.env.DASH_USUARIO;
+delete process.env.DASH_SENHA;
+delete process.env.DASH_USUARIOS;
+conferir('sem conta nenhuma, nao ha credencial', temCredenciais(), false);
+conferir('e ninguem entra', conferirCredenciais('admin@apggov.com.br', 'senha-do-admin'), null);
+
+process.env.DASH_USUARIO = salvo.u;
+process.env.DASH_SENHA = salvo.s;
+process.env.DASH_USUARIOS = salvo.m;

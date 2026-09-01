@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { COOKIE_SESSAO, credenciaisConferem, criarSessao } from '@/lib/sessao';
+import { conferirCredenciais, COOKIE_SESSAO, criarSessao } from '@/lib/sessao';
 
 export interface EstadoLogin {
   erro: string | null;
@@ -14,7 +14,8 @@ export async function entrar(_anterior: EstadoLogin, dados: FormData): Promise<E
 
   if (!usuario || !senha) return { erro: 'Preencha usuário e senha.' };
 
-  if (!credenciaisConferem(usuario, senha)) {
+  const conta = conferirCredenciais(usuario, senha);
+  if (!conta) {
     /*
       Uma mensagem só para os dois casos, de propósito: dizer "usuário não
       existe" contaria a quem está tentando adivinhar que o outro campo é o
@@ -23,7 +24,7 @@ export async function entrar(_anterior: EstadoLogin, dados: FormData): Promise<E
     return { erro: 'Usuário ou senha incorretos.' };
   }
 
-  const { valor, maxAge } = await criarSessao(usuario);
+  const { valor, maxAge } = await criarSessao(conta);
   (await cookies()).set(COOKIE_SESSAO, valor, {
     httpOnly: true,
     sameSite: 'lax',

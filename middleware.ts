@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { COOKIE_SESSAO, sessaoValida } from '@/lib/sessao';
+import { COOKIE_SESSAO, sessaoValida, temCredenciais } from '@/lib/sessao';
 
 /**
  * Trava de acesso ao dash.
@@ -24,7 +24,7 @@ export async function middleware(requisicao: NextRequest) {
 
   // Em desenvolvimento, sem credencial configurada, libera: exigir login no
   // localhost só atrasaria quem está mexendo no código.
-  if (!usuario || !senha) {
+  if (!temCredenciais()) {
     if (process.env.NODE_ENV === 'production') {
       return new NextResponse(
         'Dash bloqueado: defina DASH_USUARIO e DASH_SENHA nas variáveis de ambiente ' +
