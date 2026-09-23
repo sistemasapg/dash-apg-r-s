@@ -22,3 +22,7 @@ tsconfig.tsbuildinfo
 
 # Vercel
 .vercel/
+
+# Scripts descartaveis de diagnostico
+*-temp.mts
+*-temp.cjs
