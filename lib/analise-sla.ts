@@ -100,7 +100,21 @@ export function resumirSla(vagas: VagaPipefyComNumeros[]): ResumoSla {
       fechadas.filter((v) => v.sla).map((v) => v.sla!.decorridos),
     ),
     semVinculo: abertas.filter((v) => !v.vaga_codigo).length,
-    candidatos: vagas.reduce((s, v) => s + (v.candidatos ?? 0), 0),
+    /*
+      Soma uma vez por VAGA DA GUPY, não por card.
+
+      Vários cards apontam para a mesma publicação — uma por cidade, um card por
+      escola —, e os candidatos dela são um pool compartilhado. Somar por card
+      contaria as mesmas pessoas tantas vezes quantas forem as escolas, e o
+      total do painel passaria dos candidatos que existem de verdade.
+    */
+    candidatos: [
+      ...new Map(
+        vagas
+          .filter((v) => v.vaga_codigo)
+          .map((v) => [v.vaga_codigo!, v.candidatos ?? 0]),
+      ).values(),
+    ].reduce((s, n) => s + n, 0),
     maisAntiga:
       abertas.length === 0
         ? null

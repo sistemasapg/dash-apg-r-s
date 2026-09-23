@@ -10,8 +10,13 @@ import { escolasDaRegional, REGIONAIS, SIGLAS } from '@/config/unidades';
 export interface OpcaoGupy {
   codigo: string;
   nome: string;
-  /** Card que já usa esta vaga. Null quando ela está livre. */
-  vinculadaA: string | null;
+  /**
+   * Cards que já usam esta vaga. Vazio quando ninguém a vinculou ainda.
+   *
+   * É lista porque a mesma publicação atende vários cards — ela informa, e não
+   * impede.
+   */
+  vinculadaA: string[];
 }
 
 const INICIAL: EstadoForm = { ok: false, mensagem: null };
@@ -362,14 +367,20 @@ export function FormularioVagaPipefy({
             >
               <option value="">— ainda não publicada / sem vínculo —</option>
               {opcoes.map((o) => {
-                // Vaga já tomada por outro card fica visível mas travada: some da
-                // lista seria pior — a pessoa procuraria a vaga sem entender.
-                const ocupadaPorOutro =
-                  o.vinculadaA !== null && o.vinculadaA !== vaga?.card_id;
+                /*
+                  Vaga já usada por outro card continua selecionável: a Gupy
+                  publica por cidade e o R&S abre por unidade, então a mesma
+                  publicação atende várias escolas. O aviso fica só para a
+                  pessoa saber que vai dividir o pool de candidatos, e não para
+                  impedi-la.
+                */
+                const outros = o.vinculadaA.filter((c) => c !== vaga?.card_id);
                 return (
-                  <option key={o.codigo} value={o.codigo} disabled={ocupadaPorOutro}>
+                  <option key={o.codigo} value={o.codigo}>
                     {o.nome}
-                    {ocupadaPorOutro ? ` — já no card ${o.vinculadaA}` : ''}
+                    {outros.length > 0
+                      ? ` — já em ${outros.length} card${outros.length > 1 ? 's' : ''}`
+                      : ''}
                   </option>
                 );
               })}

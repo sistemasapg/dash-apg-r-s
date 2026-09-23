@@ -173,9 +173,15 @@ Feito o vínculo, o card passa a mostrar quantos candidatos aquela publicação 
 hoje, quanto variou desde a foto anterior e quantos já saíram do funil. E a
 página da vaga da Gupy ganha uma ficha dizendo de onde ela veio.
 
-**Um card corresponde a uma vaga da Gupy, e vice-versa.** Tentar vincular uma
-vaga já usada por outro card é recusado com o número do card que a tem — e a
-opção já aparece travada na lista, para o erro não chegar a acontecer.
+**Vários cards podem apontar para a mesma vaga da Gupy** — e esse é o caso
+normal, não a exceção. A Gupy publica por **cidade** ("Professor de Matemática
+| Curitiba") e o R&S abre um card por **unidade**; como uma cidade tem várias
+escolas, a mesma publicação atende vários cards.
+
+A consequência é que os candidatos daquela publicação são um **pool
+compartilhado**: a tela marca "pool dividido com N cards" na linha, e o total do
+Dashboard soma uma vez por publicação, e não por card — somar por card contaria
+as mesmas pessoas uma vez por escola.
 
 **O tempo em aberto conta da data digitada**, não da criação da vaga na Gupy
 (que costuma ser posterior ao pedido). Ao marcar a vaga como fechada, o contador

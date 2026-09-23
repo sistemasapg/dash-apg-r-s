@@ -360,3 +360,32 @@ conferir('e ninguem entra', conferirCredenciais('admin@apggov.com.br', 'senha-do
 process.env.DASH_USUARIO = salvo.u;
 process.env.DASH_SENHA = salvo.s;
 process.env.DASH_USUARIOS = salvo.m;
+
+/* ------------------------------------------------------------------------ */
+
+console.log('\nVários cards na mesma vaga da Gupy');
+
+/*
+  A Gupy publica por CIDADE e o R&S abre um card por UNIDADE, então a mesma
+  publicação atende várias escolas — e os candidatos dela são um pool dividido
+  entre elas, não uma fila por escola.
+*/
+const MESMA_CIDADE = [
+  vagaFalsa({ card_id: 'C1', vaga_codigo: 'CWB-MAT', candidatos: 500 }),
+  vagaFalsa({ card_id: 'C2', vaga_codigo: 'CWB-MAT', candidatos: 500 }),
+  vagaFalsa({ card_id: 'C3', vaga_codigo: 'CWB-MAT', candidatos: 500 }),
+  vagaFalsa({ card_id: 'C4', vaga_codigo: 'SJP-MAT', candidatos: 120 }),
+  vagaFalsa({ card_id: 'C5', vaga_codigo: null, candidatos: null }),
+];
+
+const compartilhado = resumirSla(MESMA_CIDADE);
+conferir('cada card continua sendo uma vaga aberta', compartilhado.abertas, 5);
+// 500 uma vez (e não três) + 120. Somar por card daria 1.620 candidatos que
+// não existem — é o erro que este teste existe para impedir.
+conferir('o total soma o pool UMA vez por publicação', compartilhado.candidatos, 620);
+conferir('card sem vínculo não soma nada', compartilhado.semVinculo, 1);
+conferir(
+  'e um card sozinho continua somando normalmente',
+  resumirSla([MESMA_CIDADE[3]]).candidatos,
+  120,
+);

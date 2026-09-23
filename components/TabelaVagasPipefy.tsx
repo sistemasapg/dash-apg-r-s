@@ -106,6 +106,15 @@ export function TabelaVagasPipefy({
     [vagas],
   );
 
+  /** Quantos cards dividem cada publicação da Gupy. */
+  const cardsPorVaga = useMemo(() => {
+    const conta = new Map<string, number>();
+    for (const v of vagas) {
+      if (v.vaga_codigo) conta.set(v.vaga_codigo, (conta.get(v.vaga_codigo) ?? 0) + 1);
+    }
+    return conta;
+  }, [vagas]);
+
   const visiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     return vagas
@@ -266,6 +275,18 @@ export function TabelaVagasPipefy({
                         {v.encerrados !== null && v.encerrados > 0 && (
                           <div className="text-xs text-ink-muted">
                             {numero(v.encerrados)} já encerrados
+                          </div>
+                        )}
+                        {/*
+                          Sem este aviso, N cards da mesma cidade mostrariam o
+                          mesmo número e pareceria que cada um tem a própria
+                          fila — quando na verdade eles disputam as mesmas
+                          pessoas.
+                        */}
+                        {(cardsPorVaga.get(v.vaga_codigo!) ?? 1) > 1 && (
+                          <div className="text-xs text-[var(--atencao)]">
+                            pool dividido com {numero(cardsPorVaga.get(v.vaga_codigo!)! - 1)} card
+                            {cardsPorVaga.get(v.vaga_codigo!)! - 1 > 1 ? 's' : ''}
                           </div>
                         )}
                       </>

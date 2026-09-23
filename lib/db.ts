@@ -190,13 +190,22 @@ export async function migrar(): Promise<void> {
   await sql`alter table vaga_pipefy add column if not exists funcao text`;
 
   /*
-    Um card corresponde a no máximo uma vaga da Gupy, e uma vaga da Gupy a no
-    máximo um card. Índice parcial porque `null` (ainda sem vínculo) precisa
-    poder se repetir — um `unique` comum já permitiria isso, mas o parcial deixa
-    a intenção explícita e não indexa as linhas sem vínculo.
+    VÁRIOS cards podem apontar para a mesma vaga da Gupy, e isso é o normal —
+    não um acidente a evitar.
+
+    A Gupy publica por CIDADE ("Professor de Matemática | Curitiba"); o R&S abre
+    um card por UNIDADE. Como uma cidade tem várias escolas, a mesma publicação
+    atende vários cards, e os candidatos dela são um pool compartilhado entre
+    eles.
+
+    O índice nasceu ÚNICO, com o mesmo nome, porque a regra inicial era 1:1.
+    `create index if not exists` não afrouxaria um índice que já existe, então o
+    drop vem antes e o novo leva outro nome — assim um banco criado sob a regra
+    antiga migra sozinho na primeira execução, sem passo manual.
   */
+  await sql`drop index if exists idx_pipefy_vaga`;
   await sql`
-    create unique index if not exists idx_pipefy_vaga
+    create index if not exists idx_pipefy_vaga_multi
     on vaga_pipefy (vaga_codigo) where vaga_codigo is not null
   `;
 

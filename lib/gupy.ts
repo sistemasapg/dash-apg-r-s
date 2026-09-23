@@ -15,13 +15,19 @@ const CONCORRENCIA = Number(process.env.GUPY_CONCORRENCIA ?? 6);
 
 /**
  * Status de vaga que ENTRAM no acompanhamento. Lista de permissão, não de
- * bloqueio: o dash da APG acompanha só o que está no ar, e um status novo que a
- * Gupy invente amanhã fica de fora sozinho, em vez de entrar sem ninguém notar.
+ * bloqueio: um status novo que a Gupy invente amanhã fica de fora sozinho, em
+ * vez de entrar sem ninguém notar.
+ *
+ * `todos` desliga o recorte e traz a conta inteira — inclusive vaga encerrada,
+ * congelada e rascunho. É bem mais lento e bem maior; veja a nota sobre
+ * concorrência abaixo.
  */
-const STATUS_PERMITIDOS = (process.env.GUPY_STATUS_VAGA ?? 'published')
-  .split(',')
-  .map((s) => s.trim().toLowerCase())
-  .filter(Boolean);
+const STATUS_BRUTO = (process.env.GUPY_STATUS_VAGA ?? 'published').trim().toLowerCase();
+
+const STATUS_PERMITIDOS =
+  STATUS_BRUTO === 'todos' || STATUS_BRUTO === ''
+    ? []
+    : STATUS_BRUTO.split(',').map((s) => s.trim()).filter(Boolean);
 
 export class ErroGupy extends Error {
   // Campos declarados no corpo (e não como parâmetros do construtor) porque

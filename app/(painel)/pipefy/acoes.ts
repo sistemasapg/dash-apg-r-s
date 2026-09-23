@@ -144,20 +144,10 @@ export async function gravarVaga(
     });
   } catch (erro) {
     /*
-      23505 é violação de unicidade. Aqui só pode ser o índice de `vaga_codigo`:
-      o `card_id` repetido cai no `on conflict` e vira atualização. Ou seja, a
-      vaga da Gupy escolhida já pertence a outro card.
+      Não há mais nada único aqui além do `card_id`, e ele cai no `on conflict`
+      e vira atualização. A mesma vaga da Gupy em vários cards é o normal: a
+      publicação é por cidade e o card é por unidade.
     */
-    const codigo = (erro as { code?: string }).code;
-    if (codigo === '23505') {
-      return {
-        ok: false,
-        mensagem:
-          'Essa vaga da Gupy já está vinculada a outro card do Pipefy. ' +
-          'Desvincule lá antes de vincular aqui.',
-        campo: 'vaga_codigo',
-      };
-    }
     return { ok: false, mensagem: `Não deu para gravar: ${(erro as Error).message}` };
   }
 

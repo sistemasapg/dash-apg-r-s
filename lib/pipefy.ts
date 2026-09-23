@@ -40,16 +40,28 @@ export async function listarVagasPipefy(): Promise<VagaPipefy[]> {
   return [...linhas];
 }
 
-export async function vagaPipefyPorCodigoGupy(
+/**
+ * Os cards do R&S que apontam para uma vaga da Gupy.
+ *
+ * Devolve lista, e não um só: a publicação é por cidade e os cards são por
+ * unidade, então "Professor de Matemática | Curitiba" costuma atender várias
+ * escolas ao mesmo tempo. Mostrar só o primeiro esconderia as demais.
+ *
+ * Abertas primeiro, e entre elas a mais antiga no topo — é a ordem de quem
+ * precisa de atenção.
+ */
+export async function cardsPipefyPorCodigoGupy(
   vagaCodigo: string,
-): Promise<VagaPipefy | null> {
+): Promise<VagaPipefy[]> {
   const sql = getSql();
-  const [linha] = await sql<VagaPipefy[]>`
+  const linhas = await sql<VagaPipefy[]>`
     select id, card_id, titulo, categoria, funcao, regional, unidade, aberta_em,
            fechada_em, situacao, vaga_codigo, observacao, criada_em, atualizada_em
-    from vaga_pipefy where vaga_codigo = ${vagaCodigo} limit 1
+    from vaga_pipefy
+    where vaga_codigo = ${vagaCodigo}
+    order by (situacao <> 'aberta'), aberta_em, id
   `;
-  return linha ?? null;
+  return [...linhas];
 }
 
 export interface EntradaVagaPipefy {

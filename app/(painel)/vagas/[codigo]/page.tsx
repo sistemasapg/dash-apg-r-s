@@ -22,7 +22,7 @@ import { ListaMovimentacoes } from '@/components/ListaMovimentacoes';
 import { ListaCandidatos } from '@/components/ListaCandidatos';
 import { FichaVaga } from '@/components/FichaVaga';
 import { FichaPipefy } from '@/components/FichaPipefy';
-import { vagaPipefyPorCodigoGupy } from '@/lib/pipefy';
+import { cardsPipefyPorCodigoGupy } from '@/lib/pipefy';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,14 +44,14 @@ export default async function Pagina({
   const temComparacao = Boolean(comp.anterior);
   const opcoes = { apenasAtivos: filtro.apenasAtivos, vagas: [vagaCodigo] };
 
-  const [resumo, funil, serie, nome, ficha, cardPipefy, detalheAtual, detalheAnterior] =
+  const [resumo, funil, serie, nome, ficha, cardsPipefy, detalheAtual, detalheAnterior] =
     await Promise.all([
       resumoGeral(comp, opcoes),
       funilPorEtapa(comp, opcoes),
       serieHistorica(opcoes),
       nomeDaVaga(comp, vagaCodigo),
       detalheVaga(comp, vagaCodigo),
-      vagaPipefyPorCodigoGupy(vagaCodigo),
+      cardsPipefyPorCodigoGupy(vagaCodigo),
       temDetalhe(comp.atual),
       temDetalhe(comp.anterior),
     ]);
@@ -95,9 +95,13 @@ export default async function Pagina({
 
       {ficha && <FichaVaga vaga={ficha} />}
 
-      {/* O tempo do card conta ate a data da FOTO, para casar com o resto da tela. */}
-      {cardPipefy && comp.atual && (
-        <FichaPipefy vaga={cardPipefy} hoje={comp.atual.data_ref} />
+      {/*
+        Vários cards podem apontar para esta publicação — ela é por cidade e os
+        cards são por unidade. O tempo de cada um conta até a data da FOTO, para
+        casar com o resto da tela.
+      */}
+      {cardsPipefy.length > 0 && comp.atual && (
+        <FichaPipefy cards={cardsPipefy} hoje={comp.atual.data_ref} />
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

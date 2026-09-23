@@ -33,17 +33,23 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<P
   const resumo = resumirSla(vagas);
   const consulta = queryDoFiltro(filtro);
 
-  // Quem já está ocupado por um card, para o formulário travar a opção em vez
-  // de deixar gravar e receber o erro de unicidade do banco.
-  const ocupadas = new Map(
-    vagas.filter((v) => v.vaga_codigo).map((v) => [v.vaga_codigo!, v.card_id]),
-  );
+  /*
+    Quantos cards já apontam para cada vaga da Gupy. Não serve mais para travar
+    a opção — serve para avisar que o pool de candidatos vai ser dividido.
+  */
+  const usadaPor = new Map<string, string[]>();
+  for (const v of vagas) {
+    if (!v.vaga_codigo) continue;
+    const atual = usadaPor.get(v.vaga_codigo);
+    if (atual) atual.push(v.card_id);
+    else usadaPor.set(v.vaga_codigo, [v.card_id]);
+  }
 
   const opcoes: OpcaoGupy[] = vagasGupy
     .map((v) => ({
       codigo: v.vaga_codigo,
       nome: v.vaga_nome,
-      vinculadaA: ocupadas.get(v.vaga_codigo) ?? null,
+      vinculadaA: usadaPor.get(v.vaga_codigo) ?? [],
     }))
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
@@ -52,9 +58,9 @@ export default async function Pagina({ searchParams }: { searchParams: Promise<P
     recorte) precisa continuar selecionável, senão editar qualquer outro campo
     dessa linha desfaria o vínculo sem ninguém pedir.
   */
-  for (const [codigo, card] of ocupadas) {
+  for (const [codigo, cards] of usadaPor) {
     if (!opcoes.some((o) => o.codigo === codigo)) {
-      opcoes.push({ codigo, nome: `${codigo} (fora da foto atual)`, vinculadaA: card });
+      opcoes.push({ codigo, nome: `${codigo} (fora da foto atual)`, vinculadaA: cards });
     }
   }
 
