@@ -15,7 +15,8 @@
     "limpar": "node scripts/limpar.mts",
     "gupy:inspecionar": "node scripts/inspecionar.mts",
     "gupy:etapas": "node scripts/mapear-etapas.mts",
-    "demo": "node scripts/demo.mts"
+    "demo": "node scripts/demo.mts",
+    "pipefy:descobrir": "node scripts/pipefy-descobrir.mts"
   },
   "dependencies": {
     "next": "^15.5.23",
