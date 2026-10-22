@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { lerDashboardPipefy } from '@/lib/dashboard-pipefy';
 import { mapaDeEtapas, prazoDoDp } from '@/lib/prazos';
+import { idadeDoRelatorio } from '@/lib/planilha';
 import { dataHora, dataLonga, numero } from '@/lib/format';
 import { PainelPeriodo } from '@/components/PainelPeriodo';
 
@@ -42,6 +43,7 @@ export default async function Pagina() {
   }
 
   const { vagas, desde, totalNoPipe, lidoEm } = dados;
+  const idade = await idadeDoRelatorio();
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,10 +55,42 @@ export default async function Pagina() {
           do cadastro manual.
         </p>
         <p className="mt-0.5 text-xs text-ink-muted">
-          {numero(vagas.length)} vagas desde {dataLonga(desde)} · {numero(totalNoPipe)} cards no
-          relatório · lido em {dataHora(lidoEm)}
+{numero(vagas.length)} vagas desde {dataLonga(desde)} · {numero(totalNoPipe)} cards no
+          relatório ·{' '}
+          {idade.carregadoEm
+            ? `carregado do Pipefy em ${dataHora(idade.carregadoEm)}`
+            : `lido em ${dataHora(lidoEm)}`}
         </p>
       </div>
+
+      {/*
+        O aviso de dado velho vem antes de qualquer número.
+
+        Sem ele a falha do robô é silenciosa: a tela dizia "lido em agora" — a
+        hora em que o DASH leu a planilha, que é sempre agora — e continuaria
+        dizendo isso servindo dado de semanas atrás. O robô pode parar por
+        token, por limite de export do Pipefy (50 por pipe a cada 24h) ou por
+        falha de rede, e nenhum desses avisa ninguém. Este aviso avisa.
+      */}
+      {idade.velho && (
+        <div className="rounded-xl border border-[var(--baixa)] bg-[color-mix(in_srgb,var(--baixa)_8%,transparent)] p-4 text-sm">
+          <strong>
+            Os dados têm {Math.floor((idade.horas ?? 0) / 24)}{' '}
+            {Math.floor((idade.horas ?? 0) / 24) === 1 ? 'dia' : 'dias'}.
+          </strong>{' '}
+          O robô que traz o relatório do Pipefy roda todo dia de manhã, e a última carga foi em{' '}
+          {idade.carregadoEm ? dataHora(idade.carregadoEm) : '—'}. Tudo nesta tela reflete aquele
+          momento, não o de agora. Vale conferir o acionador no Apps Script.
+        </div>
+      )}
+
+      {idade.desconhecido && (
+        <div className="rounded-xl border border-[var(--atencao)] bg-[color-mix(in_srgb,var(--atencao)_8%,transparent)] p-4 text-sm">
+          <strong>Não deu para saber quando os dados foram carregados.</strong> A aba{' '}
+          <code>log_relatorio</code> da planilha não respondeu. Os números abaixo podem estar
+          atualizados ou não — esta tela não tem como afirmar.
+        </div>
+      )}
 
       {/*
         Já houve aqui um aviso listando os cards cadastrados à mão que o
