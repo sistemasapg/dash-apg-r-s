@@ -14,7 +14,11 @@ export function StatTile({
   dicaClique,
 }: {
   rotulo: string;
-  valor: number;
+  /**
+   * O número do cartão. Aceita texto para o caso em que a medida não existe —
+   * um "—" honesto, em vez de um zero que se leria como medida ruim.
+   */
+  valor: number | string;
   delta?: number;
   variacao?: number | null;
   nota?: string;
@@ -41,7 +45,7 @@ export function StatTile({
     <>
       <div className="text-sm text-ink-2">{rotulo}</div>
       <div className={`num mt-2 font-semibold tracking-tight ${destaque ? 'text-5xl' : 'text-3xl'}`}>
-        {numero(valor)}
+        {typeof valor === 'number' ? numero(valor) : valor}
         {sufixo && <span className="ml-0.5 text-2xl font-normal text-ink-2">{sufixo}</span>}
       </div>
       <div className="mt-2 min-h-5">

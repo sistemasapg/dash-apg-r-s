@@ -1,114 +1,100 @@
 import Link from 'next/link';
-import { listarSnapshots, migrar } from '@/lib/db';
-import { resolverComparacao, resumoGeral } from '@/lib/metrics';
-import { vagasPipefyComNumeros } from '@/lib/pipefy';
-import { lerFiltro, queryDoFiltro, type ParamsBrutos } from '@/lib/consulta';
-import { dataLonga, numero } from '@/lib/format';
-import { PainelSla } from '@/components/PainelSla';
+import { lerDashboardPipefy } from '@/lib/dashboard-pipefy';
+import { mapaDeEtapas, prazoDoDp } from '@/lib/prazos';
+import { dataHora, dataLonga, numero } from '@/lib/format';
+import { PainelPeriodo } from '@/components/PainelPeriodo';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * A tela de entrada.
+ * O Dashboard: painel de SLA alimentado pelo relatório do Pipefy.
  *
- * Ela é o painel de vagas — quantas estão em aberto, por categoria, e há
- * quantos dias úteis contra o prazo. É essa a pergunta que o R&S e a diretoria
- * fazem primeiro; o funil de candidatos, que é o outro lado do dash, mora em
- * "Candidatos" e aparece aqui resumido numa faixa, para a home não fingir que a
- * outra metade não existe.
+ * Tomou o lugar do dashboard antigo em 21/10/2026. O antigo lia o cadastro que
+ * o R&S preenchia à mão — 31 vagas contra as 2.282 daqui — e envelhecia: seis
+ * vagas que ele ainda mostrava como abertas tinham encerrado em 15/10. Segue
+ * acessível em `/dashboard-manual`, fora da navegação, enquanto o time confere
+ * se não perdeu nada.
+ *
+ * Esta tela não lê nem grava o banco. O cadastro manual segue intacto, e é
+ * onde continua morando o vínculo com a Gupy.
  */
-export default async function Pagina({ searchParams }: { searchParams: Promise<ParamsBrutos> }) {
-  const filtro = lerFiltro(await searchParams);
-  await migrar();
+export default async function Pagina() {
+  let dados;
+  let erro: string | null = null;
 
-  const snapshots = await listarSnapshots();
-  const comp = await resolverComparacao(filtro.data, filtro.comparar);
+  try {
+    dados = await lerDashboardPipefy();
+  } catch (e) {
+    erro = (e as Error).message;
+  }
 
-  const [vagas, gupy] = await Promise.all([
-    vagasPipefyComNumeros(comp),
-    // Sem foto ainda, a faixa da Gupy não tem o que somar.
-    snapshots.length > 0 ? resumoGeral(comp) : Promise.resolve(null),
-  ]);
+  if (erro || !dados) {
+    return (
+      <div className="mx-auto max-w-2xl rounded-xl border border-borda bg-surface p-8">
+        <h1 className="text-xl font-semibold tracking-tight">Não deu para montar o painel</h1>
+        <p className="mt-3 text-sm text-[var(--baixa)]">{erro}</p>
+        <p className="mt-4 text-sm text-ink-2">
+          Esta tela cruza a guia <code>pipefy_relatorio</code> da planilha com os vínculos da Gupy
+          que estão no banco. Precisa das duas coisas.
+        </p>
+      </div>
+    );
+  }
 
-  const consulta = queryDoFiltro(filtro);
-  const temComparacao = Boolean(comp.anterior);
+  const { vagas, desde, totalNoPipe, lidoEm } = dados;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-sm text-ink-2">
-            As vagas em aberto por categoria e o prazo de cada uma, em dias úteis.
-          </p>
-        </div>
-        {comp.atual && (
-          <p className="text-xs text-ink-muted">
-            Candidatos da foto de {dataLonga(comp.atual.data_ref)}
-          </p>
-        )}
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="mt-1 text-sm text-ink-2">
+          O painel de SLA, alimentado <strong>só</strong> pelo relatório
+          automático do Pipefy. Cobre todas as vagas do pipe, sem ninguém digitar, e não usa nada
+          do cadastro manual.
+        </p>
+        <p className="mt-0.5 text-xs text-ink-muted">
+          {numero(vagas.length)} vagas desde {dataLonga(desde)} · {numero(totalNoPipe)} cards no
+          relatório · lido em {dataHora(lidoEm)}
+        </p>
       </div>
 
-      {vagas.length === 0 ? (
-        <div className="rounded-xl border border-borda bg-surface p-8">
-          <h2 className="text-lg font-semibold tracking-tight">Nenhuma vaga lançada ainda</h2>
-          <p className="mt-2 text-sm text-ink-2">
-            O painel se monta a partir das vagas do R&amp;S: categoria, regional, escola e data
-            de abertura. Assim que o time lançar a primeira{' '}
-            <Link href="/pipefy" className="underline hover:text-ink">
-              na aba Vagas R&amp;S
-            </Link>
-            , esta tela começa a medir.
-          </p>
-        </div>
-      ) : (
-        <PainelSla vagas={vagas} />
-      )}
-
       {/*
-        A faixa da Gupy. É uma linha, e não mais quatro cartões: o assunto desta
-        tela são as vagas, e repetir o peso visual do topo faria as duas metades
-        disputarem a atenção em vez de se complementarem.
+        Já houve aqui um aviso listando os cards cadastrados à mão que o
+        relatório não traz. Saiu: eram dois, os dois foram investigados e
+        nenhum era problema desta tela — um é de outro pipe (Autorização para
+        Desligamento) e o outro o token não enxerga. Um alerta permanente para
+        duas linhas erradas no cadastro manual pedia atenção toda vez para algo
+        que se resolve uma vez só.
       */}
-      <section className="rounded-xl border border-borda bg-surface p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
-            <h2 className="text-sm font-semibold">Candidatos na Gupy</h2>
 
-            {gupy ? (
-              <>
-                <span className="text-sm">
-                  <span className="num text-lg font-semibold">{numero(gupy.totalAtual)}</span>
-                  <span className="ml-1.5 text-ink-2">no total</span>
-                </span>
-                <span className="text-sm">
-                  <span className="num text-lg font-semibold">
-                    {numero(gupy.novosCandidatos)}
-                  </span>
-                  <span className="ml-1.5 text-ink-2">
-                    {temComparacao ? 'candidaturas novas' : 'novas (precisa de duas fotos)'}
-                  </span>
-                </span>
-                <span className="text-sm">
-                  <span className="num text-lg font-semibold">{numero(gupy.avancaram)}</span>
-                  <span className="ml-1.5 text-ink-2">avançaram de etapa</span>
-                </span>
-              </>
-            ) : (
-              <span className="text-sm text-ink-2">
-                Nenhuma foto guardada ainda — rode <code>npm run sync</code>.
-              </span>
-            )}
-          </div>
+      <PainelPeriodo
+        vagas={vagas}
+        desde={desde}
+        prazosDeEtapa={mapaDeEtapas()}
+        prazoDp={prazoDoDp()}
+      />
 
-          <Link
-            href={`/candidatos${consulta}`}
-            className="shrink-0 text-sm underline decoration-borda underline-offset-2 hover:text-ink"
-          >
-            ver o funil completo
+      <div className="flex flex-col gap-1 text-xs text-ink-muted">
+        <p>
+          Esta tela <strong>não lê nem grava o banco</strong>. Tudo o que ela mostra vem do
+          relatório do Pipefy, que se reescreve todo dia de manhã.
+        </p>
+        <p>
+          Por isso ela não traz <strong>contagem de candidatos</strong>: ligar um card da Gupy a um
+          card do Pipefy é decisão humana — a Gupy publica por cidade, o Pipefy abre por unidade —
+          e esse vínculo mora no cadastro manual, em{' '}
+          <Link href="/pipefy" className="text-[var(--marca-azul)] underline-offset-2 hover:underline">
+            Vagas R&amp;S
           </Link>
-        </div>
-      </section>
+          . Conferi: o relatório não tem nenhum campo que aponte para a Gupy, então não é questão
+          de buscar noutro lugar.
+        </p>
+        <p>
+          O SLA é o de <code>config/categorias.ts</code>, contado em dias úteis a partir de D+1.
+          A vaga conta como aberta até chegar a <em>Processo Seletivo Concluído</em> — ou seja, o
+          relógio cobre também a admissão, e não só a seleção.
+        </p>
+      </div>
     </div>
   );
 }

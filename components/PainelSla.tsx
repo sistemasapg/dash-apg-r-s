@@ -6,7 +6,9 @@ import {
   filtrar,
   opcoes,
   porCategoria,
+  porEncerramento,
   porUrgencia,
+  todasOrdenadas,
   resumirSla,
   SEM_RECORTE,
   type Recorte,
@@ -22,7 +24,15 @@ import { ListaVagasSla } from './ListaVagasSla';
 const ID_LISTA = 'lista-vagas';
 
 /** O que a lista de baixo está mostrando. */
-type Foco = 'abertas' | 'fora-do-prazo';
+/**
+ * O que a lista do rodapé mostra.
+ *
+ * `fora-do-prazo` não é uma situação, é um recorte das abertas — vem do clique
+ * no cartão de atraso. As outras quatro são a situação da vaga, e existem
+ * porque a lista precisa responder também "o que foi fechado no período", não
+ * só "o que está pendente".
+ */
+export type Foco = 'abertas' | 'fechadas' | 'canceladas' | 'todas' | 'fora-do-prazo';
 
 /**
  * O painel de vagas e prazos.
@@ -31,17 +41,86 @@ type Foco = 'abertas' | 'fora-do-prazo';
  * vagas, e trocar de regional, clicar numa barra ou num cartão vira uma volta de
  * laço em vez de uma ida ao servidor. É o que torna o recorte instantâneo.
  */
-export function PainelSla({ vagas }: { vagas: VagaPipefyComNumeros[] }) {
-  const [recorte, setRecorte] = useState<Recorte>(SEM_RECORTE);
-  const [foco, setFoco] = useState<Foco>('abertas');
+export function PainelSla({
+  vagas,
+  focoInicial = 'abertas',
+  foco: focoExterno,
+  aoMudarFoco,
+  recorte: recorteExterno,
+  aoMudarRecorte,
+}: {
+  vagas: VagaPipefyComNumeros[];
+  /**
+   * Com que aba a lista abre.
+   *
+   * O padrão é "abertas", que é o que interessa no uso normal. Quem chega aqui
+   * por um recorte já feito — clicar num gargalo, por exemplo — precisa de
+   * "todas": várias fases de trabalho em andamento contam como vaga FECHADA
+   * para o dash (a vaga foi preenchida, falta a papelada), e abrir em "abertas"
+   * devolveria uma lista vazia logo depois de a pessoa clicar num número.
+   */
+  focoInicial?: Foco;
+  /**
+   * O recorte vindo de fora, quando quem hospeda o painel já tem a barra de
+   * filtros própria.
+   *
+   * Passá-lo liga o modo embutido: o painel esconde a própria barra de filtros
+   * e os próprios cartões, e fica só com os gráficos e a lista. É o que evita
+   * a tela ter duas barras de filtro e dois conjuntos de números dizendo a
+   * mesma coisa — foi exatamente o que aconteceu no Dashboard 2.
+   *
+   * Sem ele o painel continua se bastando, que é como o Dashboard original o
+   * usa.
+   */
+  recorte?: Recorte;
+  aoMudarRecorte?: (recorte: Recorte) => void;
+  /**
+   * A aba da lista, quando quem hospeda precisa comandá-la.
+   *
+   * É o que permite um cartão lá em cima levar direto à lista certa: clicar em
+   * "ainda em aberto" abre a aba Abertas, clicar em "fechadas" abre a delas.
+   * Sem controle externo o cartão rolaria até uma lista mostrando outra coisa.
+   */
+  foco?: Foco;
+  aoMudarFoco?: (foco: Foco) => void;
+}) {
+  const [recorteInterno, setRecorteInterno] = useState<Recorte>(SEM_RECORTE);
+  const [focoInterno, setFocoInterno] = useState<Foco>(focoInicial);
+  const foco = focoExterno ?? focoInterno;
+  const setFoco = (novo: Foco) =>
+    focoExterno === undefined ? setFocoInterno(novo) : aoMudarFoco?.(novo);
+
+  const embutido = recorteExterno !== undefined;
+  const recorte = recorteExterno ?? recorteInterno;
 
   const filtradas = useMemo(() => filtrar(vagas, recorte), [vagas, recorte]);
   const resumo = useMemo(() => resumirSla(filtradas), [filtradas]);
   const abertas = useMemo(() => porUrgencia(filtradas), [filtradas]);
 
-  const listadas = useMemo(
-    () => (foco === 'fora-do-prazo' ? abertas.filter((v) => v.sla && v.sla.saldo < 0) : abertas),
-    [abertas, foco],
+  const listadas = useMemo(() => {
+    switch (foco) {
+      case 'fora-do-prazo':
+        return abertas.filter((v) => v.sla && v.sla.saldo < 0);
+      case 'fechadas':
+        return porEncerramento(filtradas, 'fechada');
+      case 'canceladas':
+        return porEncerramento(filtradas, 'cancelada');
+      case 'todas':
+        return todasOrdenadas(filtradas);
+      default:
+        return abertas;
+    }
+  }, [abertas, filtradas, foco]);
+
+  /** Quantas vagas cada aba da lista tem, para o número aparecer no botão. */
+  const contagem = useMemo(
+    () => ({
+      abertas: filtradas.filter((v) => v.situacao === 'aberta').length,
+      fechadas: filtradas.filter((v) => v.situacao === 'fechada').length,
+      canceladas: filtradas.filter((v) => v.situacao === 'cancelada').length,
+      todas: filtradas.length,
+    }),
+    [filtradas],
   );
 
   /*
@@ -56,14 +135,18 @@ export function PainelSla({ vagas }: { vagas: VagaPipefyComNumeros[] }) {
   const seletor =
     'rounded-lg border border-borda bg-surface px-3 py-1.5 text-sm focus:outline-2 focus:outline-[var(--marca-azul)]';
 
+  /** Grava o recorte onde ele mora — no estado próprio ou em quem hospeda. */
+  const setRecorte = (novo: Recorte) =>
+    embutido ? aoMudarRecorte?.(novo) : setRecorteInterno(novo);
+
   const trocar = (campo: keyof Recorte, valor: string) =>
-    setRecorte((r) => ({
-      ...r,
+    setRecorte({
+      ...recorte,
       [campo]: valor,
       // Trocar de regional zera a escola: a escola anterior é de outra regional
       // e o recorte devolveria lista vazia sem a pessoa entender por quê.
       ...(campo === 'regional' ? { unidade: '' } : {}),
-    }));
+    });
 
   /** Muda o que a lista mostra e leva a pessoa até ela. */
   const focar = (novo: Foco) => {
@@ -75,6 +158,7 @@ export function PainelSla({ vagas }: { vagas: VagaPipefyComNumeros[] }) {
 
   return (
     <div className="flex flex-col gap-6">
+      {!embutido && (
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={recorte.regional}
@@ -154,7 +238,9 @@ export function PainelSla({ vagas }: { vagas: VagaPipefyComNumeros[] }) {
           </button>
         )}
       </div>
+      )}
 
+      {!embutido && (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           rotulo="Vagas em aberto"
@@ -218,6 +304,7 @@ export function PainelSla({ vagas }: { vagas: VagaPipefyComNumeros[] }) {
           }
         />
       </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <BarrasCategoria
@@ -229,10 +316,49 @@ export function PainelSla({ vagas }: { vagas: VagaPipefyComNumeros[] }) {
       </div>
 
       <div id={ID_LISTA} className="scroll-mt-6">
+        {/*
+          As abas da lista. Ficam coladas nela, e não no topo da tela, porque
+          regem só o que vem abaixo — os gráficos e os cartões continuam
+          falando da carteira inteira do recorte.
+        */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {(
+            [
+              ['abertas', 'Abertas', contagem.abertas],
+              ['fechadas', 'Fechadas', contagem.fechadas],
+              ['canceladas', 'Fora', contagem.canceladas],
+              ['todas', 'Todas', contagem.todas],
+            ] as const
+          ).map(([valor, rotulo, n]) => (
+            <button
+              key={valor}
+              type="button"
+              onClick={() => setFoco(valor)}
+              aria-pressed={foco === valor}
+              className={`rounded-lg border px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--marca-azul)] ${
+                foco === valor
+                  ? 'border-[var(--marca-azul)] bg-[color-mix(in_srgb,var(--marca-azul)_10%,transparent)] font-medium text-ink'
+                  : 'border-borda text-ink-2 hover:bg-surface-2 hover:text-ink'
+              }`}
+            >
+              {rotulo}
+              <span className="num ml-1.5 text-ink-muted">{numero(n)}</span>
+            </button>
+          ))}
+        </div>
+
         <ListaVagasSla
           vagas={listadas}
           titulo={[
-            foco === 'fora-do-prazo' ? 'Vagas fora do prazo' : 'Vagas abertas',
+            foco === 'fora-do-prazo'
+              ? 'Vagas fora do prazo'
+              : foco === 'fechadas'
+                ? 'Vagas fechadas'
+                : foco === 'canceladas'
+                  ? 'Vagas fora'
+                  : foco === 'todas'
+                    ? 'Todas as vagas'
+                    : 'Vagas abertas',
             recorte.categoria && `· ${recorte.categoria.replace(/^Vagas /, '')}`,
             recorte.unidade
               ? `· ${recorte.unidade}`
@@ -240,6 +366,13 @@ export function PainelSla({ vagas }: { vagas: VagaPipefyComNumeros[] }) {
           ]
             .filter(Boolean)
             .join(' ')}
+          ordem={
+            foco === 'fechadas' || foco === 'canceladas'
+              ? 'encerrada mais recente primeiro'
+              : foco === 'todas'
+                ? 'abertas por urgência, depois as encerradas'
+                : 'mais urgente primeiro'
+          }
         />
       </div>
     </div>

@@ -215,6 +215,34 @@ export async function migrar(): Promise<void> {
       valor text not null
     )
   `;
+
+  /*
+    Os prazos de SLA, editáveis pela tela em vez de escritos no código.
+
+    Ficavam em `config/categorias.ts` e `config/etapas-pipefy.ts`, e mudá-los
+    exigia alguém mexer no repositório e publicar — três vezes só em 21/10/2026.
+    Prazo é decisão do R&S, não de quem programa.
+
+    `escopo` separa os dois tipos: `categoria` para o prazo de fechar a vaga,
+    `etapa` para o prazo de sair de uma fase. A chave é o nome, como aparece no
+    resto do sistema.
+
+    `dias_uteis` aceita nulo de propósito: é a diferença entre "esta etapa tem
+    7 dias" e "esta etapa ainda não tem prazo acordado". A segunda aparece na
+    tela sem cobrança, e inventar um número no lugar dela seria acusar atraso
+    contra uma régua que ninguém decidiu.
+  */
+  await sql`
+    create table if not exists prazo (
+      escopo         text not null,
+      chave          text not null,
+      dias_uteis     integer,
+      observacao     text,
+      atualizado_em  text not null,
+      atualizado_por text,
+      primary key (escopo, chave)
+    )
+  `;
 }
 
 export function hoje(): string {

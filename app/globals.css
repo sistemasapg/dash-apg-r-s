@@ -36,6 +36,20 @@
   --atencao: #fab219;
 
   /*
+    Os times que respondem por tempo na jornada de uma vaga. Dois tons, porque
+    são duas identidades (R&S e DP) e não dois níveis de uma mesma grandeza.
+
+    São vizinhos das cores da marca, mas não são elas: o azul institucional tem
+    L 0.42 e ficaria mais pesado que o laranja na mesma barra. Estes passaram
+    nos seis checks — separação ΔE 24 em protanopia e 35 na visão normal, dentro
+    da faixa de luminosidade e com 3:1 contra o fundo.
+  */
+  --time-rs: #31539c;
+  --time-dp: #e8622a;
+  /* O que não é de nenhum dos dois: aprovação do regional, fases sem dono. */
+  --time-outro: #a8a6a0;
+
+  /*
     Cores da marca da APG, tiradas do site institucional. Vivem só na moldura —
     cabeçalho, navegação, foco. Os gráficos continuam na paleta validada para
     daltonismo e contraste, que não deve ser trocada por cor de logo.
@@ -75,6 +89,12 @@
 
     --alta: #0ca30c;
     --baixa: #d03b3b;
+
+    /* Passos próprios para o fundo escuro, validados contra ele — não é o
+       claro clareado. */
+    --time-rs: #6f93d9;
+    --time-dp: #dd7245;
+    --time-outro: #6b6964;
 
     /* Passos mais claros da marca, para o fundo escuro. */
     --marca-azul: #7ba0e6;
@@ -116,6 +136,10 @@
   --alta: #0ca30c;
   --baixa: #d03b3b;
 
+  --time-rs: #6f93d9;
+  --time-dp: #dd7245;
+  --time-outro: #6b6964;
+
   --marca-azul: #7ba0e6;
   --marca-laranja: #f4855a;
 
@@ -136,6 +160,9 @@
   --color-alta: var(--alta);
   --color-baixa: var(--baixa);
   --color-atencao: var(--atencao);
+  --color-time-rs: var(--time-rs);
+  --color-time-dp: var(--time-dp);
+  --color-time-outro: var(--time-outro);
   --color-marca-azul: var(--marca-azul);
   --color-marca-laranja: var(--marca-laranja);
 

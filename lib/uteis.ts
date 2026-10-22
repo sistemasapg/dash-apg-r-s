@@ -117,3 +117,38 @@ export function calcularSla(
 
   return { prazo: slaDiasUteis, decorridos, saldo, vencimento, situacao };
 }
+
+/* ------------------------------------------------------------------------ */
+/* Datas no fuso de Brasília                                                  */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Um formatador só, criado uma vez.
+ *
+ * Construir `Intl.DateTimeFormat` é caro — carrega dados de locale e de fuso a
+ * cada chamada. Havia uma construção por data lida, e com o relatório inteiro
+ * (2.282 vagas × ~50 colunas de data) isso dava mais de cem mil construções:
+ * 7,3 segundos só nelas, contra 1,6 para baixar e parsear a planilha.
+ * Reaproveitar o formatador derruba isso para frações de segundo.
+ */
+const EM_BRASILIA = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+/** Hoje em `AAAA-MM-DD`, no fuso de Brasília. */
+export function hojeEmBrasilia(): string {
+  return EM_BRASILIA.format(new Date());
+}
+
+/**
+ * `2026-10-08 16:31:09` ou ISO → `2026-10-08`, no fuso de Brasília.
+ *
+ * Devolve string vazia para entrada vazia, e os dez primeiros caracteres
+ * quando a data não parseia — é melhor mostrar algo reconhecível do que
+ * engolir o valor.
+ */
+export function soAData(carimbo: string | undefined): string {
+  const t = (carimbo ?? '').trim();
+  if (!t) return '';
+  const d = new Date(t.includes('T') ? t : t.replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return t.slice(0, 10);
+  return EM_BRASILIA.format(d);
+}
