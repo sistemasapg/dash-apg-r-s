@@ -16,6 +16,9 @@ import { funcoesDaCategoria, NOMES_CATEGORIAS, slaDaCategoria } from '../config/
 import { escolaValida, escolasDaRegional, normalizarEscola, normalizarRegional, REGIONAIS, SIGLAS } from '../config/unidades.ts';
 import { SEM_RECORTE } from '../lib/analise-sla.ts';
 import { conferirCredenciais, temCredenciais } from '../lib/sessao.ts';
+import { aderenciaPorTime, medirVaga } from '../lib/sla-time.ts';
+import type { Trecho } from '../lib/jornada.ts';
+import type { Dono } from '../config/etapas-pipefy.ts';
 
 let falhas = 0;
 
@@ -165,11 +168,30 @@ conferir('Professores tem 12 funções', funcoesDaCategoria('Vagas Professores')
 conferir('Administrativas tem 9 funções', funcoesDaCategoria('Vagas Administrativas').length, 9);
 conferir('Jovem Aprendiz tem uma função', funcoesDaCategoria('Vagas Jovem Aprendiz').join(','), 'Jovem Aprendiz');
 conferir('Estagiário tem uma função', funcoesDaCategoria('Vagas Estagiário').join(','), 'Tutor');
-// Todas as quatro têm lista: o campo de função é fechado em toda categoria.
+/*
+  Lista vazia é permitida, e o teste mudou por causa disso.
+
+  Ele afirmava que TODA categoria tem lista fechada de funções — verdade para
+  as quatro originais. "Vagas Técnico Pedagógico" entrou em 09/10/2026 sem
+  lista, de propósito: as funções dela estão hoje em Professores, e movê-las é
+  decisão do R&S que depende de resolver PSICÓLOGO e NUTRICIONISTA, que o
+  Pipefy classifica em duas categorias ao mesmo tempo.
+
+  `config/categorias.ts` trata lista vazia como campo livre justamente para
+  uma categoria nova poder existir antes de as funções serem levantadas. O
+  teste estava cobrando uma regra que o código nunca teve.
+*/
 conferir(
-  'nenhuma categoria ficou sem lista de funções',
-  NOMES_CATEGORIAS.every((c) => funcoesDaCategoria(c).length > 0),
+  'as quatro categorias originais têm lista fechada de funções',
+  ['Vagas Professores', 'Vagas Administrativas', 'Vagas Jovem Aprendiz', 'Vagas Estagiário'].every(
+    (c) => funcoesDaCategoria(c).length > 0,
+  ),
   true,
+);
+conferir(
+  'Técnico Pedagógico ainda não tem lista, e isso é aceito',
+  funcoesDaCategoria('Vagas Técnico Pedagógico').length,
+  0,
 );
 
 console.log('\nO estado do prazo');
@@ -389,3 +411,67 @@ conferir(
   resumirSla([MESMA_CIDADE[3]]).candidatos,
   120,
 );
+
+/* ------------------------------------------------------------------------ */
+/* SLA por time                                                               */
+/* ------------------------------------------------------------------------ */
+
+console.log('\nAs duas réguas: R&S e DP medidos separadamente');
+
+/** Um trecho de jornada, só com o que a medição usa. */
+const trecho = (dono: Dono, fase: string, diasUteis: number): Trecho => ({
+  fase,
+  dono,
+  inicio: '2026-09-01',
+  fim: '2026-09-02',
+  diasUteis,
+  atual: false,
+  conta: dono === 'R&S' || dono === 'DP',
+});
+
+/*
+  A vaga do card 1441208407, que motivou o modelo: o R&S levou 4 dias úteis e
+  o DP levou 13, e o painel antigo dizia "13 de 15, no prazo" — verdadeiro e
+  inútil, porque o número somava dois trabalhos e não apontava para ninguém.
+*/
+const JORNADA_REAL: Trecho[] = [
+  trecho('Regional', 'Aprovação do Diretor Regional', 0),
+  trecho('R&S', 'Análise de P&C', 2),
+  trecho('R&S', 'Pronto para Admissão', 0),
+  trecho('R&S', 'Aguardando envio da documentação', 2),
+  trecho('DP', 'Aguardando o Exame Admissional', 2),
+  trecho('DP', 'Lançamento do Pagamento de Benefícios', 5),
+  trecho('DP', 'Aprovação do Pagamento de Benefícios', 6),
+];
+
+const medida = medirVaga(JORNADA_REAL, 15, 2);
+
+conferir('o R&S soma só as fases dele', medida.rs.diasUteis, 4);
+conferir('e cumpre o prazo da categoria', medida.rs.dentroDoPrazo, true);
+conferir('sem atraso', medida.rs.atraso, 0);
+
+conferir('o DP soma só as fases dele', medida.dp.diasUteis, 13);
+conferir('e estoura o prazo de 2', medida.dp.dentroDoPrazo, false);
+conferir('em 11 dias úteis', medida.dp.atraso, 11);
+
+// O tempo do regional não é de ninguém: não entra em nenhuma das duas contas.
+conferir('o tempo do regional fica fora', medida.rs.diasUteis + medida.dp.diasUteis, 17);
+
+// Sem prazo não é o mesmo que prazo zero: a leitura sai sem cobrança.
+const semPrazo = medirVaga(JORNADA_REAL, null, null);
+conferir('sem prazo acordado não há cobrança', semPrazo.rs.dentroDoPrazo, null);
+conferir('e o tempo continua medido', semPrazo.rs.diasUteis, 4);
+
+// Time que não tocou a vaga não vira "atrasado por omissão".
+const soRs = medirVaga([trecho('R&S', 'Prova', 3)], 7, 2);
+conferir('time que não passou pela vaga não é cobrado', soRs.dp.dentroDoPrazo, null);
+conferir('e aparece com zero fase', soRs.dp.fases, 0);
+
+console.log('\nA aderência agrega as duas réguas');
+const aderencias = aderenciaPorTime([medida, soRs]);
+const rs = aderencias.find((a) => a.dono === 'R&S');
+const dp = aderencias.find((a) => a.dono === 'DP');
+conferir('as duas vagas passaram pelo R&S', rs?.medidas, 2);
+conferir('e as duas cumpriram', rs?.dentro, 2);
+conferir('só uma passou pelo DP', dp?.medidas, 1);
+conferir('e ela não cumpriu', dp?.dentro, 0);

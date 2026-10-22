@@ -186,3 +186,35 @@ export function porUrgencia(vagas: VagaPipefyComNumeros[]): VagaPipefyComNumeros
     .filter((v) => v.situacao === 'aberta')
     .sort((a, b) => (a.sla?.saldo ?? Infinity) - (b.sla?.saldo ?? Infinity) || b.dias - a.dias);
 }
+
+/**
+ * As vagas já encerradas, da que fechou mais recentemente para a mais antiga.
+ *
+ * Urgência não serve aqui: numa vaga encerrada não há prazo a perseguir, e
+ * ordenar pelo saldo colocaria no topo a que estourou mais — que é leitura de
+ * desempenho passado, não a pergunta de quem abre a lista. Quem procura uma
+ * vaga fechada quase sempre procura uma recente.
+ */
+export function porEncerramento(
+  vagas: VagaPipefyComNumeros[],
+  situacao: 'fechada' | 'cancelada',
+): VagaPipefyComNumeros[] {
+  return vagas
+    .filter((v) => v.situacao === situacao)
+    .sort((a, b) => (b.fechada_em ?? '').localeCompare(a.fechada_em ?? '') || b.dias - a.dias);
+}
+
+/**
+ * Tudo junto: abertas primeiro, por urgência, e depois as encerradas.
+ *
+ * A ordem não é cronológica de propósito. Numa lista única o que exige ação
+ * tem que vir antes do que já foi resolvido — senão a vaga atrasada de hoje
+ * aparece depois de cinquenta vagas fechadas no mês passado.
+ */
+export function todasOrdenadas(vagas: VagaPipefyComNumeros[]): VagaPipefyComNumeros[] {
+  return [
+    ...porUrgencia(vagas),
+    ...porEncerramento(vagas, 'fechada'),
+    ...porEncerramento(vagas, 'cancelada'),
+  ];
+}

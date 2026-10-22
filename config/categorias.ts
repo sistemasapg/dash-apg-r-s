@@ -5,8 +5,10 @@
  * seguinte à abertura (D+1) até a finalização. É ele que diz se uma vaga está
  * no prazo, vencendo hoje ou atrasada.
  *
- * Mudar um número aqui muda o painel inteiro na hora — não há SLA copiado em
- * outro lugar do código.
+ * Mudar um número aqui muda o painel inteiro na hora. O único outro lugar onde
+ * um prazo pode aparecer é `config/sla-funcao.ts`, onde uma função específica
+ * ganha exceção ao prazo da sua categoria — e esse mapa começa vazio, então por
+ * ora os números daqui valem sozinhos.
  */
 
 export interface Categoria {
@@ -56,6 +58,22 @@ export const CATEGORIAS: Record<string, Categoria> = {
       'SUPORTE TECNICO EDUCACAO PROFISSIONAL',
     ],
   },
+
+  /*
+    Categoria que o Pipefy sempre teve e o dash não.
+
+    SLA de 10 dias úteis, decidido pelo R&S em 09/10/2026. Criá-la corrige um
+    erro que já existia: nove das doze funções que estão em "Vagas Professores"
+    acima — PAEE, Coordenador Pedagógico, Pedagogo SAREH, PAC e outras — são
+    classificadas como técnico-pedagógicas no Pipefy, e vinham sendo cobradas
+    em 7 dias úteis.
+
+    As funções seguem em Professores por enquanto: mover cada uma para cá é
+    mudança de dado, não de código, e precisa sair junto com a decisão do R&S
+    sobre PSICÓLOGO/PSICOLOGO(A) e NUTRICIONISTA, que o Pipefy registra em duas
+    categorias ao mesmo tempo.
+  */
+  'Vagas Técnico Pedagógico': { slaDiasUteis: 10, funcoes: [] },
 
   /*
     Estas duas têm uma função só, e é assim mesmo — não é lista pela metade.

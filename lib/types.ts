@@ -1,4 +1,6 @@
 import type { Sla } from './uteis.ts';
+import type { Trecho } from './jornada.ts';
+import type { SlaPorTime } from './sla-time.ts';
 
 /** Uma candidatura da Gupy já traduzida para o vocabulário do dash. */
 export interface LinhaNormalizada {
@@ -132,4 +134,28 @@ export interface VagaPipefyComNumeros extends VagaPipefy {
    * não há SLA, e inventar um cobraria do time um prazo que ninguém acordou.
    */
   sla: Sla | null;
+  /**
+   * Por quais fases do Pipefy o card passou, com o tempo de cada uma.
+   *
+   * Opcional porque só existe para quem vem do relatório. O Dashboard original
+   * lê o cadastro manual, que não tem histórico de fase nenhum — lá o campo
+   * fica ausente e a tabela simplesmente não mostra a coluna.
+   */
+  jornada?: Trecho[];
+  /**
+   * As etiquetas aplicadas ao card no Pipefy.
+   *
+   * Opcional pelo mesmo motivo da jornada: só existe para quem vem do
+   * relatório. `config/pipefy.ts` decide quais viram selo na tela.
+   */
+  etiquetas?: string[];
+  /**
+   * O SLA de cada time nesta vaga: o R&S contra o prazo da categoria, o DP
+   * contra o prazo dele em cada fase.
+   *
+   * Opcional como a jornada, e pelo mesmo motivo: depende do histórico de
+   * fases, que só o relatório do Pipefy traz. O cadastro manual não tem como
+   * produzi-lo, e lá a tabela cai na soma simples por time.
+   */
+  slaPorTime?: SlaPorTime;
 }
