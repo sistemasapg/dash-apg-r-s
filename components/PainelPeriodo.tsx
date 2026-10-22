@@ -255,19 +255,50 @@ export function PainelPeriodo({
         quanto demora, quanto está pendente, onde trava.
       */}
       {/* Cinco cartões: três de volume e dois de aderência, um por time. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/*
           Todo cartão leva à seção que o detalha. Um número grande sem caminho
           até o detalhe obriga a pessoa a procurar na tela qual parte o explica.
         */}
+        {/*
+          Os três primeiros fecham uma conta: criadas = encerradas + em aberto.
+          Quem olha confere a soma de cabeça, e isso dá confiança no resto.
+        */}
         <StatTile
           rotulo="Vagas criadas"
           valor={resumo.vagas}
-          nota={`${numero(resumo.fechadas)} fechadas · ${numero(resumo.canceladas)} canceladas`}
+          nota="todas as que nasceram no período"
           aoClicar={() => verNaLista('todas')}
           ativo={foco === 'todas' && !faseValida}
           dicaClique="clique para ver todas na lista"
         />
+        <StatTile
+          rotulo="Encerradas"
+          valor={resumo.fechadas + resumo.canceladas}
+          nota={`${numero(resumo.fechadas)} concluídas · ${numero(resumo.canceladas)} canceladas`}
+          aoClicar={() => verNaLista('fechadas')}
+          ativo={foco === 'fechadas' && !faseValida}
+          dicaClique="clique para ver as concluídas"
+        />
+        <StatTile
+          rotulo="Ainda em aberto"
+          valor={resumo.abertas}
+          nota={[
+            sla.mediaUteisAbertas === null
+              ? null
+              : `há ${numero(sla.mediaUteisAbertas)} dias úteis na média`,
+            resumo.foraDoPrazo > 0
+              ? `${numero(resumo.foraDoPrazo)} fora do prazo`
+              : 'todas dentro do prazo',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          destaque={resumo.foraDoPrazo > 0}
+          aoClicar={() => verNaLista('abertas')}
+          ativo={foco === 'abertas' && !faseValida}
+          dicaClique="clique para ver as abertas"
+        />
+
         {/*
           Duas réguas, dois cartões. Eram um só — "tempo para fechar" — que
           somava o trabalho dos dois times e por isso não apontava para
@@ -296,37 +327,44 @@ export function PainelPeriodo({
           }
           destaque={aderenciaDp?.aderencia != null && aderenciaDp.aderencia < 0.8}
         />
-        <StatTile
-          rotulo="Ainda em aberto"
-          valor={resumo.abertas}
-          nota={[
-            sla.mediaUteisAbertas === null
-              ? null
-              : `há ${numero(sla.mediaUteisAbertas)} dias úteis na média`,
-            resumo.foraDoPrazo > 0
-              ? `${numero(resumo.foraDoPrazo)} fora do prazo`
-              : 'todas dentro do prazo',
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          destaque={resumo.foraDoPrazo > 0}
-          aoClicar={() => verNaLista('abertas')}
-          ativo={foco === 'abertas' && !faseValida}
-          dicaClique="clique para ver as abertas"
-        />
-        <StatTile
-          rotulo="Onde mais trava"
-          valor={gargalos[0] ? gargalos[0].diasUteis : '—'}
-          sufixo={gargalos[0] ? ' dias' : undefined}
-          nota={
-            gargalos[0]
-              ? `${gargalos[0].fase} — ${Math.round(gargalos[0].fatia * 100)}% de todo o tempo`
-              : 'sem histórico de fase no recorte'
-          }
-          destaque={Boolean(gargalos[0])}
-          aoClicar={gargalos[0] ? () => irPara(ID_GARGALOS) : undefined}
-          dicaClique="clique para ver onde o tempo ficou"
-        />
+        {/*
+          Este cartão responde "qual fase", não "quantos dias".
+
+          Ele já trouxe o TOTAL de dias da fase líder — 30.294 em dezoito meses.
+          Número grande sem magnitude que alguém reconheça não informa, só ocupa
+          a atenção que os outros quatro precisam. O nome da fase é a resposta;
+          a porcentagem fica ao lado para dizer o tamanho dela.
+        */}
+        <button
+          type="button"
+          onClick={() => gargalos[0] && irPara(ID_GARGALOS)}
+          disabled={!gargalos[0]}
+          className="rounded-xl border border-borda bg-surface p-5 text-left transition-colors hover:bg-surface-2 disabled:cursor-default disabled:hover:bg-surface"
+        >
+          <div className="text-sm text-ink-2">Onde mais trava</div>
+
+          {gargalos[0] ? (
+            <>
+              <div className="mt-2 line-clamp-2 text-lg leading-snug font-semibold tracking-tight">
+                {gargalos[0].fase}
+              </div>
+              <div className="num mt-2 min-h-5 text-sm text-ink-2">
+                <span className="font-medium">{Math.round(gargalos[0].fatia * 100)}%</span> de
+                todo o tempo
+              </div>
+              <div className="mt-1 text-xs text-ink-muted">
+                {numero(gargalos[0].agora)}{' '}
+                {gargalos[0].agora === 1 ? 'vaga parada aqui' : 'vagas paradas aqui'} · clique
+                para ver
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-2 text-lg font-semibold tracking-tight text-ink-muted">—</div>
+              <div className="mt-2 min-h-5 text-sm text-ink-2">sem histórico no recorte</div>
+            </>
+          )}
+        </button>
       </div>
 
       <LegendaDosTimes prazoDp={prazoDp} />
