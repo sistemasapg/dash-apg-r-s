@@ -5,7 +5,6 @@ import type { VagaPipefyComNumeros } from '@/lib/types';
 import { gargalosDe, noPeriodo, presets, resumirPeriodo, type Periodo } from '@/lib/gargalos';
 import { filtrar, opcoes, resumirSla, SEM_RECORTE, type Recorte } from '@/lib/analise-sla';
 import { rotuloRegional } from '@/config/unidades';
-import { aderenciaPorTime } from '@/lib/sla-time';
 import { LegendaDosTimes } from './SeloDeTime';
 import { dataLonga, numero } from '@/lib/format';
 import { StatTile } from './StatTile';
@@ -89,13 +88,6 @@ export function PainelPeriodo({
   const resumo = useMemo(() => resumirPeriodo(doRecorte), [doRecorte]);
   const sla = useMemo(() => resumirSla(doRecorte), [doRecorte]);
 
-  /* As duas réguas: o R&S contra o prazo da categoria, o DP contra o dele por fase. */
-  const porTime = useMemo(
-    () => aderenciaPorTime(doRecorte.flatMap((v) => (v.slaPorTime ? [v.slaPorTime] : []))),
-    [doRecorte],
-  );
-  const aderenciaRs = porTime.find((a) => a.dono === 'R&S');
-  const aderenciaDp = porTime.find((a) => a.dono === 'DP');
   const { gargalos, diasForaDaConta } = useMemo(
     () => gargalosDe(doRecorte, prazosDeEtapa),
     [doRecorte, prazosDeEtapa],
@@ -255,46 +247,30 @@ export function PainelPeriodo({
         quanto demora, quanto está pendente, onde trava.
       */}
       {/* Cinco cartões: três de volume e dois de aderência, um por time. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/*
           Todo cartão leva à seção que o detalha. Um número grande sem caminho
           até o detalhe obriga a pessoa a procurar na tela qual parte o explica.
         */}
+        {/*
+          Os três primeiros fecham uma conta: criadas = encerradas + em aberto.
+          Quem olha confere a soma de cabeça, e isso dá confiança no resto.
+        */}
         <StatTile
           rotulo="Vagas criadas"
           valor={resumo.vagas}
-          nota={`${numero(resumo.fechadas)} fechadas · ${numero(resumo.canceladas)} canceladas`}
+          nota="todas as que nasceram no período"
           aoClicar={() => verNaLista('todas')}
           ativo={foco === 'todas' && !faseValida}
           dicaClique="clique para ver todas na lista"
         />
-        {/*
-          Duas réguas, dois cartões. Eram um só — "tempo para fechar" — que
-          somava o trabalho dos dois times e por isso não apontava para
-          ninguém: uma vaga com R&S de 4 dias e DP de 13 aparecia como "13 de
-          15, no prazo".
-        */}
         <StatTile
-          rotulo="R&S no prazo"
-          valor={aderenciaRs?.aderencia === null || !aderenciaRs ? '—' : Math.round(aderenciaRs.aderencia * 100)}
-          sufixo={aderenciaRs?.aderencia == null ? undefined : '%'}
-          nota={
-            aderenciaRs?.aderencia == null
-              ? 'nenhuma vaga passou pelo R&S no recorte'
-              : `${numero(aderenciaRs.dentro)} de ${numero(aderenciaRs.medidas)} · mediana ${numero(aderenciaRs.mediana)} dias úteis`
-          }
-          destaque={aderenciaRs?.aderencia != null && aderenciaRs.aderencia < 0.8}
-        />
-        <StatTile
-          rotulo="DP no prazo"
-          valor={aderenciaDp?.aderencia === null || !aderenciaDp ? '—' : Math.round(aderenciaDp.aderencia * 100)}
-          sufixo={aderenciaDp?.aderencia == null ? undefined : '%'}
-          nota={
-            aderenciaDp?.aderencia == null
-              ? 'nenhuma vaga passou pelo DP no recorte'
-              : `${numero(aderenciaDp.dentro)} de ${numero(aderenciaDp.medidas)} · mediana ${numero(aderenciaDp.mediana)} dias úteis`
-          }
-          destaque={aderenciaDp?.aderencia != null && aderenciaDp.aderencia < 0.8}
+          rotulo="Encerradas"
+          valor={resumo.fechadas + resumo.canceladas}
+          nota={`${numero(resumo.fechadas)} concluídas · ${numero(resumo.canceladas)} canceladas`}
+          aoClicar={() => verNaLista('fechadas')}
+          ativo={foco === 'fechadas' && !faseValida}
+          dicaClique="clique para ver as concluídas"
         />
         <StatTile
           rotulo="Ainda em aberto"
@@ -314,19 +290,45 @@ export function PainelPeriodo({
           ativo={foco === 'abertas' && !faseValida}
           dicaClique="clique para ver as abertas"
         />
-        <StatTile
-          rotulo="Onde mais trava"
-          valor={gargalos[0] ? gargalos[0].diasUteis : '—'}
-          sufixo={gargalos[0] ? ' dias' : undefined}
-          nota={
-            gargalos[0]
-              ? `${gargalos[0].fase} — ${Math.round(gargalos[0].fatia * 100)}% de todo o tempo`
-              : 'sem histórico de fase no recorte'
-          }
-          destaque={Boolean(gargalos[0])}
-          aoClicar={gargalos[0] ? () => irPara(ID_GARGALOS) : undefined}
-          dicaClique="clique para ver onde o tempo ficou"
-        />
+
+        {/*
+          Este cartão responde "qual fase", não "quantos dias".
+
+          Ele já trouxe o TOTAL de dias da fase líder — 30.294 em dezoito meses.
+          Número grande sem magnitude que alguém reconheça não informa, só ocupa
+          a atenção que os outros quatro precisam. O nome da fase é a resposta;
+          a porcentagem fica ao lado para dizer o tamanho dela.
+        */}
+        <button
+          type="button"
+          onClick={() => gargalos[0] && irPara(ID_GARGALOS)}
+          disabled={!gargalos[0]}
+          className="rounded-xl border border-borda bg-surface p-5 text-left transition-colors hover:bg-surface-2 disabled:cursor-default disabled:hover:bg-surface"
+        >
+          <div className="text-sm text-ink-2">Onde mais trava</div>
+
+          {gargalos[0] ? (
+            <>
+              <div className="mt-2 line-clamp-2 text-lg leading-snug font-semibold tracking-tight">
+                {gargalos[0].fase}
+              </div>
+              <div className="num mt-2 min-h-5 text-sm text-ink-2">
+                <span className="font-medium">{Math.round(gargalos[0].fatia * 100)}%</span> de
+                todo o tempo
+              </div>
+              <div className="mt-1 text-xs text-ink-muted">
+                {numero(gargalos[0].agora)}{' '}
+                {gargalos[0].agora === 1 ? 'vaga parada aqui' : 'vagas paradas aqui'} · clique
+                para ver
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-2 text-lg font-semibold tracking-tight text-ink-muted">—</div>
+              <div className="mt-2 min-h-5 text-sm text-ink-2">sem histórico no recorte</div>
+            </>
+          )}
+        </button>
       </div>
 
       <LegendaDosTimes prazoDp={prazoDp} />

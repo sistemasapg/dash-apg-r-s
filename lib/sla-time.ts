@@ -159,7 +159,19 @@ function mediana(valores: number[]): number {
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
 }
 
-/** Quantas vagas cada time entregou no prazo, no recorte. */
+/**
+ * Quantas vagas cada time entregou no prazo, no recorte.
+ *
+ * Nenhuma tela usa isto hoje. Os dois cartões de aderência — "R&S no prazo" e
+ * "DP no prazo" — saíram do Dashboard em 22/10/2026: com recorte curto a
+ * amostra fica pequena e a porcentagem balança demais (77% e 6% no histórico
+ * todo viravam 96% e 48% no mês), o que convida a comemorar ou se assustar com
+ * ruído. A aderência por vaga continua visível nos selos de cada linha.
+ *
+ * Fica aqui, coberta por teste, porque a conta está certa e o cálculo é o
+ * mesmo — se a leitura agregada voltar, por período longo ou com amostra
+ * mínima, é só chamar.
+ */
 export function aderenciaPorTime(leituras: SlaPorTime[]): AderenciaDoTime[] {
   return (['rs', 'dp'] as const).map((qual) => {
     const todas = leituras.map((l) => l[qual]).filter((s) => s.fases > 0);
