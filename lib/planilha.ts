@@ -190,6 +190,67 @@ export function esquecerCache(): void {
   cache.clear();
 }
 
+/** Quantas horas de idade o dado pode ter antes de a tela avisar. */
+const HORAS_ATE_AVISAR = 30;
+
+export interface IdadeDoRelatorio {
+  /** Quando o robô escreveu na planilha pela última vez. */
+  carregadoEm: string | null;
+  horas: number | null;
+  /** Passou do tolerado — a tela deve avisar. */
+  velho: boolean;
+  /** Não deu para ler o log. Sem isso, não há como afirmar nada. */
+  desconhecido: boolean;
+}
+
+/**
+ * Há quanto tempo o relatório foi carregado — não lido.
+ *
+ * A distinção é o ponto. As telas mostravam "lido em 22/10 às 01h", que é a
+ * hora em que o DASH leu a planilha, e isso é sempre agora. Se o robô parar, a
+ * tela continua dizendo "lido agora" enquanto serve dado de semanas atrás: uma
+ * falha silenciosa, do tipo que ninguém percebe até tomar uma decisão errada.
+ *
+ * A aba `log_relatorio` guarda uma linha por carga. É dela que sai a idade de
+ * verdade.
+ *
+ * 30 horas de tolerância, e não 24: a rodada é diária, então a janela precisa
+ * caber um atraso normal sem gritar. Um dia pulado passa das 30.
+ */
+export async function idadeDoRelatorio(): Promise<IdadeDoRelatorio> {
+  const url =
+    `https://docs.google.com/spreadsheets/d/${PLANILHA}` +
+    `/gviz/tq?tqx=out:csv&sheet=log_relatorio`;
+
+  try {
+    const resposta = await fetch(url, { cache: 'no-store', redirect: 'follow' });
+    if (!resposta.ok) throw new Error(String(resposta.status));
+
+    const linhas = (await resposta.text()).trim().split('\n');
+    const ultima = linhas.at(-1) ?? '';
+    const quando = ultima.match(/^"(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})"/);
+    if (!quando) throw new Error('log sem data reconhecível');
+
+    const [, d, m, a, h, min, s] = quando;
+    // O log grava no fuso de Brasília; -03:00 o torna comparável com agora.
+    const carregado = new Date(`${a}-${m}-${d}T${h}:${min}:${s}-03:00`);
+    const horas = (Date.now() - carregado.getTime()) / 3_600_000;
+
+    return {
+      carregadoEm: carregado.toISOString(),
+      horas,
+      velho: horas > HORAS_ATE_AVISAR,
+      desconhecido: false,
+    };
+  } catch {
+    /*
+      Sem o log não dá para afirmar que o dado está velho — nem que está novo.
+      Devolve `desconhecido` para a tela poder dizer isso em vez de inventar.
+    */
+    return { carregadoEm: null, horas: null, velho: false, desconhecido: true };
+  }
+}
+
 /**
  * Campos de lista do Pipefy chegam como JSON: `["SÃO JOSE DOS PINHAIS"]`.
  * Devolve o primeiro valor, ou o texto cru quando não for JSON.
