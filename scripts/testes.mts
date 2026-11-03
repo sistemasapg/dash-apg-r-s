@@ -19,6 +19,7 @@ import { conferirCredenciais, temCredenciais } from '../lib/sessao.ts';
 import { aderenciaPorTime, medirVaga } from '../lib/sla-time.ts';
 import type { Trecho } from '../lib/jornada.ts';
 import type { Dono } from '../config/etapas-pipefy.ts';
+import { etapaConta } from '../config/etapas-pipefy.ts';
 
 let falhas = 0;
 
@@ -475,3 +476,35 @@ conferir('as duas vagas passaram pelo R&S', rs?.medidas, 2);
 conferir('e as duas cumpriram', rs?.dentro, 2);
 conferir('só uma passou pelo DP', dp?.medidas, 1);
 conferir('e ela não cumpriu', dp?.dentro, 0);
+
+console.log('\nEtapa isenta: tem dono, mas não é cobrada');
+
+/*
+  "Lançamento do Pagamento de Benefícios" é do DP e está marcada com
+  `cobra: false` desde 03/11/2026 — o tempo lá não depende do time. Ela pesava
+  387 dias úteis em 80 vagas, a maior acumulação do pipe, e cobrá-la levava a
+  aderência do DP de 32% para 17%.
+*/
+const COM_ISENTA: Trecho[] = [
+  trecho('DP', 'Aguardando o Exame Admissional', 2),
+  { ...trecho('DP', 'Lançamento do Pagamento de Benefícios', 9), conta: false },
+];
+
+const comIsencao = medirVaga(COM_ISENTA, 15, 2);
+conferir('a etapa isenta sai da soma do time', comIsencao.dp.diasUteis, 2);
+conferir('e a vaga fica no prazo', comIsencao.dp.dentroDoPrazo, true);
+conferir('só a etapa cobrada conta como fase', comIsencao.dp.fases, 1);
+
+// Sem a isenção, as mesmas datas reprovariam — é o que a marcação evita.
+const semIsencao = medirVaga(
+  COM_ISENTA.map((t) => ({ ...t, conta: true })),
+  15,
+  2,
+);
+conferir('sem a isenção, a mesma vaga somaria 11', semIsencao.dp.diasUteis, 11);
+conferir('e estouraria o prazo', semIsencao.dp.dentroDoPrazo, false);
+
+// A fase continua existindo na jornada: isentar não é esconder.
+conferir('a jornada guarda as duas fases', COM_ISENTA.length, 2);
+conferir('etapaConta reconhece a isenção', etapaConta('Lançamento do Pagamento de Benefícios'), false);
+conferir('e segue cobrando as outras do DP', etapaConta('Aguardando o Exame Admissional'), true);
