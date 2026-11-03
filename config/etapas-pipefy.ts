@@ -20,6 +20,21 @@ export interface Etapa {
    * parado, mas sem cobrança — melhor do que inventar uma régua.
    */
   slaDiasUteis: number | null;
+  /**
+   * O tempo desta etapa entra na conta do SLA do time dela?
+   *
+   * `false` isenta a etapa SEM tirá-la do time: ela continua aparecendo na
+   * jornada, com a cor e o nome do dono, e o tempo segue visível — só não é
+   * cobrado. É diferente de não ter dono, que é o caso de quem ninguém está
+   * esperando.
+   *
+   * Serve para a etapa que depende de algo fora do alcance do time: um ciclo
+   * de folha, um sistema de terceiro, uma janela fixa. Cobrar nesse caso é
+   * cobrar de quem não pode andar mais rápido.
+   *
+   * Omitir é o mesmo que `true` — a isenção precisa ser deliberada.
+   */
+  cobra?: boolean;
 }
 
 /**
@@ -65,7 +80,17 @@ export const ETAPAS: Record<string, Etapa> = {
   /* --- DP: do exame admissional ao cadastro --- */
   'Aguardando o Exame Admissional': { dono: 'DP', slaDiasUteis: null },
   'Atualizar  ou Cadastrar no Domínio': { dono: 'DP', slaDiasUteis: null },
-  'Lançamento do Pagamento de Benefícios': { dono: 'DP', slaDiasUteis: null },
+  /*
+    Isenta de SLA por decisão do R&S em 03/11/2026: o tempo aqui não depende
+    do DP. A etapa segue sendo dele na jornada, e o tempo continua visível —
+    só não é cobrado.
+
+    Pesa: 387 dias úteis em 80 vagas desde 01/09, a maior acumulação do pipe.
+    Isentá-la leva a mediana do DP de 8 para 4 dias úteis e a aderência de
+    17% para 32%. O número melhora porque parou de cobrar o que não era dele,
+    não porque alguém ficou mais rápido.
+  */
+  'Lançamento do Pagamento de Benefícios': { dono: 'DP', slaDiasUteis: null, cobra: false },
   'Aprovação do Pagamento de Benefícios': { dono: 'DP', slaDiasUteis: null },
   'Documentação Enviada (Estagiário)': { dono: 'DP', slaDiasUteis: null },
   'Mobilidade Interna': { dono: 'DP', slaDiasUteis: null },
@@ -125,6 +150,8 @@ export function slaDaEtapa(fase: string): number | null {
 
 /** O tempo nesta etapa é cobrado de alguém? */
 export function etapaConta(fase: string): boolean {
+  // A isenção da etapa vem primeiro: ela tem dono, só não é cobrada dele.
+  if (ETAPAS[fase]?.cobra === false) return false;
   return !DONOS_SEM_COBRANCA.includes(donoDaEtapa(fase));
 }
 

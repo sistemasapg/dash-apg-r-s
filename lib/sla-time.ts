@@ -74,7 +74,15 @@ export function medirTime(
   prazo: number | null,
   medida: 'total' | 'por-fase',
 ): SlaDoTime {
-  const doTime = trechos.filter((t) => t.dono === dono);
+  /*
+    `t.conta` é o que respeita a isenção de etapa. Sem ele, uma fase marcada
+    com `cobra: false` em `config/etapas-pipefy.ts` continuaria entrando na
+    soma do time — a isenção existiria no arquivo e não no número.
+
+    A etapa isenta não some: ela segue na jornada, com a cor do time e o tempo
+    visível. O que ela deixa de fazer é pesar no SLA.
+  */
+  const doTime = trechos.filter((t) => t.dono === dono && t.conta);
   const diasUteis = soma(doTime);
 
   const base: SlaDoTime = {
